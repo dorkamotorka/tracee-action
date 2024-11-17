@@ -18,7 +18,7 @@ runs:
       sed -e "s|\$WORKSPACE|${{github.workspace}}\/*|" ${{github.action_path}}/policies/file_writes.yaml.tmpl > ${{github.action_path}}/policies/file_writes.yaml
       sed -e "s|\$WORKSPACE|${{github.workspace}}\/*|" ${{github.action_path}}/policies/signatures.yaml.tmpl > ${{github.action_path}}/policies/signatures.yaml
       trace_env=$(if [ "${{inputs.envs}}" = "true" ]; then echo "--output option:exec-env"; fi)
-      docker pull aquasec/tracee:0.17.1
+      docker pull aquasec/tracee:latest
       docker run -d --name tracee --rm -p 3366:3366 \
       --privileged --pid=host --cgroupns=host \
       -e LIBBPFGO_OSRELEASE_FILE=/etc/os-release-host \
@@ -31,16 +31,17 @@ runs:
       -v ${{github.action_path}}/signatures/file_write.rego:/tracee/signatures/file_write.rego \
       -v ${{github.action_path}}/signatures/miner_domain.rego:/tracee/signatures/miner_domain.rego \
       -v ${{github.action_path}}/policies:/tracee/policies \
-      aquasec/tracee:0.17.1 \
+      -v ./config.yaml:/tracee/config.yaml \
+      aquasec/tracee:latest \
       -p /tracee/policies \
-      --healthz \
+      -v ./config.yaml:/tracee/config.yaml \
       --output option:exec-hash $trace_env \
       --output json:/tmp/tracee/out/trace_$GITHUB_RUN_ID.jsonl
       echo -n "Waiting for Tracee to start..."
       while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' localhost:3366/healthz)" != "200" ]]
       do
-          echo -n "."
+          echo -n "Still waiting..."
           sleep 1
       done
       sleep 1
-      echo "" #newline
+      echo "Tracee started." #newline
